@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 import paramiko
 import requests
 
-server = os.getenv('SSH_INFO', '[]')
+server = os.getenv('SERVER', '[]')
 mail = os.getenv('MAIL', None)
 mail_psw = os.getenv('MAIL_PSW')
 
