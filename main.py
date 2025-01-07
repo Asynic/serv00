@@ -8,41 +8,46 @@ from datetime import datetime, timezone, timedelta
 import paramiko
 import requests
 
-server = os.getenv('SERVER', '[]')
+server = json.loads(os.getenv('SERVER', '[]'))
 mail = os.getenv('MAIL', None)
 mail_psw = os.getenv('MAIL_PSW')
 
+host = server['host']
+psw = server['psw']
+users = server['users']
+failed = []
 
-def ssh_multiple_connections(hosts_info, command):
-    users = []
-    hostnames = []
-    for host_info in hosts_info:
-        hostname = host_info['hostname']
-        username = host_info['username']
-        password = host_info['password']
+
+def connecting(command='whoami'):
+    success = []
+    for username in users:
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(hostname=hostname, port=22, username=username, password=password)
+            ssh.connect(hostname=host, port=22, username=username, password=psw)
             stdin, stdout, stderr = ssh.exec_command(command)
             user = stdout.read().decode().strip()
-            users.append(user)
-            hostnames.append(hostname)
+            print(f'{user} success!')
+            success.append(user)
             ssh.close()
         except Exception as e:
-            print(f"用户：{username}，连接 {hostname} 时出错: {str(e)}")
-    return users, hostnames
+            print(f"{username} while connecting {host} cause error: {str(e)}")
+            failed.append(username)
+    return success
 
 
-user_list, hostname_list = ssh_multiple_connections(json.loads(server), 'whoami')
-
+user_login = connecting()
 content = f"""
      Serv00-Login: 
-Server: {hostname_list[0]}
-Users:  {' / '.join(user_list)}
+Server: {host} *
+Users:  {' / '.join(user_login)}
 Time:   {datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')}
 IP:     {requests.get('https://api.ipify.org?format=json').json()['ip']}
 """
+
+if failed:
+    s = f'\nFailed:  {" / ".join(failed)}\n'
+    content = content.replace('*', s)
 
 
 def mail_push(sender, receiver, info, ):
